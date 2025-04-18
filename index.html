@@ -2,27 +2,29 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>얼굴 인상 분석 데모</title>
   <style>
-    body { font-family: sans-serif; margin: 0; padding: 0; text-align: center; }
-    video, canvas { position: absolute; left: 0; top: 0; }
+    body { font-family: sans-serif; margin: 0; text-align: center; }
+    canvas { position: absolute; left: 0; top: 0; z-index: 1; }
+    video { position: absolute; left: 0; top: 0; visibility: hidden; }
     #result { position: relative; margin-top: 500px; font-size: 1.2em; }
   </style>
 </head>
 <body>
   <h2>📷 얼굴 인상 분석 데모</h2>
-  <video class="input_video" autoplay muted playsinline width="640" height="480"></video>
-  <canvas class="output_canvas" width="640" height="480"></canvas>
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas" width="640" height="480"></canvas>
   <div id="result">결과를 분석 중입니다...</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.4/drawing_utils.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4/camera_utils.min.js"></script>
+  <!-- 최신 Mediapipe 라이브러리 -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.min.js"></script>
 
   <script>
-    const videoElement = document.querySelector('.input_video');
-    const canvasElement = document.querySelector('.output_canvas');
+    const videoElement = document.getElementById('video');
+    const canvasElement = document.getElementById('canvas');
     const canvasCtx = canvasElement.getContext('2d');
     const resultDiv = document.getElementById('result');
 
@@ -73,27 +75,39 @@
       }
     }
 
-    const faceMesh = new FaceMesh.FaceMesh({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`
+    const faceMesh = new FaceMesh({
+      locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
     });
 
     faceMesh.setOptions({
       maxNumFaces: 1,
       refineLandmarks: true,
       minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      minTrackingConfidence: 0.5,
     });
 
     faceMesh.onResults((results) => {
       canvasCtx.save();
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(
+        results.image,
+        0,
+        0,
+        canvasElement.width,
+        canvasElement.height
+      );
 
       if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
         for (const landmarks of results.multiFaceLandmarks) {
-          window.drawConnectors(canvasCtx, landmarks, window.FACEMESH_TESSELATION,
-            { color: '#00FF00', lineWidth: 0.5 });
-          window.drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', radius: 1.5 });
+          drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {
+            color: "#00FF00",
+            lineWidth: 0.5,
+          });
+          drawLandmarks(canvasCtx, landmarks, {
+            color: "#FF0000",
+            radius: 1.5,
+          });
 
           const score = calculateScores(landmarks);
           const resultText = classifyType(score);
@@ -103,13 +117,14 @@
       canvasCtx.restore();
     });
 
-    const camera = new Camera.Camera(videoElement, {
+    const camera = new Camera(videoElement, {
       onFrame: async () => {
         await faceMesh.send({ image: videoElement });
       },
       width: 640,
-      height: 480
+      height: 480,
     });
+
     camera.start();
   </script>
 </body>
